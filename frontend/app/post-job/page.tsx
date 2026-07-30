@@ -25,6 +25,66 @@ interface DraftData {
   savedAt: number;
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "";
+}
+
+function formatContractError(error: unknown, fallback: string): string {
+  const message = getErrorMessage(error);
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.startsWith("stellar rejected the transaction") ||
+    normalized.startsWith("transaction was cancelled") ||
+    normalized.startsWith("freighter is locked") ||
+    normalized.startsWith("the transaction was submitted") ||
+    normalized.startsWith("connect freighter before")
+  ) {
+    return message;
+  }
+
+  if (normalized.includes("user rejected") || normalized.includes("cancelled")) {
+    return "Transaction was cancelled in Freighter.";
+  }
+
+  if (normalized.includes("wallet locked")) {
+    return "Freighter is locked. Unlock your wallet and try again.";
+  }
+
+  if (
+    normalized.includes("sendtransaction") ||
+    normalized.includes("contract invocation failed") ||
+    normalized.includes("transaction failed") ||
+    normalized.includes("tx_bad") ||
+    normalized.includes("op_")
+  ) {
+    return "Stellar rejected the transaction. Check your wallet network, balance, and token address, then try again.";
+  }
+
+  if (normalized.includes("timed out")) {
+    return "The transaction was submitted but confirmation timed out. Check your wallet activity or the Stellar explorer before retrying.";
+  }
+
+  if (normalized.includes("connect freighter")) {
+    return "Connect Freighter before posting a job.";
+  }
+
+  return fallback;
+}
+
+async function withContractErrorHandling<T>(
+  call: () => Promise<T>,
+  fallback: string,
+): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    throw new Error(formatContractError(error, fallback));
+  }
+}
+
 function getDraftKey(walletAddress: string | null): string {
   return `${DRAFT_STORAGE_KEY_PREFIX}${walletAddress ?? "anonymous"}`;
 }
@@ -74,6 +134,7 @@ export default function PostJobPage() {
   );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [lastAnnouncedSuccess, setLastAnnouncedSuccess] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -153,8 +214,10 @@ export default function PostJobPage() {
 
   useEffect(() => {
     if (!wallet) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(null);
       setSuccess(null);
+      setWarning(null);
       setTxHash(null);
     }
   }, [wallet]);
@@ -166,12 +229,18 @@ export default function PostJobPage() {
           setMaxDescPayloadBytes(maxBytes);
         }
       })
-      .catch(() => {
-        // Keep default when contract read is unavailable.
+      .catch((err) => {
+        setWarning(
+          formatContractError(
+            err,
+            "Could not verify the contract description limit. The default limit will be used.",
+          ),
+        );
       });
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRateLimit(getRateLimitStatus());
     const interval = setInterval(() => {
       setRateLimit(getRateLimitStatus());
@@ -263,6 +332,7 @@ export default function PostJobPage() {
           if (submitting) return;
           setError(null);
           setSuccess(null);
+          setWarning(null);
           setTxHash(null);
           setFieldErrors({});
 
@@ -338,19 +408,26 @@ export default function PostJobPage() {
 
             localStorage.setItem(`job-desc:${hashHex}`, htmlContent);
             const cid = await uploadToIpfs(htmlContent);
-            const result = await postJob(
-              wallet,
-              amountStroops!,
-              hashHex,
-              descriptionPayloadLen,
-              deadlineUnix,
-              tokenAddress.trim(),
+            const result = await withContractErrorHandling(
+              () =>
+                postJob(
+                  wallet,
+                  amountStroops!,
+                  hashHex,
+                  descriptionPayloadLen,
+                  deadlineUnix,
+                  tokenAddress.trim(),
+                ),
+              "Could not post the job to the contract. Please check your wallet and try again.",
             );
             if (cid && !cid.startsWith("fallback:")) {
               try {
-                await storeDescriptionCid(wallet, hashHex, cid);
-              } catch {
-                // CID storage is best-effort.
+                await withContractErrorHandling(
+                  () => storeDescriptionCid(wallet, hashHex, cid),
+                  "Job posted, but the description CID could not be saved on-chain.",
+                );
+              } catch (cidError) {
+                setWarning(getErrorMessage(cidError));
               }
             }
             if (result.hash) {
@@ -374,7 +451,12 @@ export default function PostJobPage() {
             setDraftSavedAt(null);
             setHasDraft(false);
           } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to post job. Please try again.");
+            setError(
+              formatContractError(
+                e,
+                "Failed to post job. Please review the form and try again.",
+              ),
+            );
           } finally {
             setSubmitting(false);
           }
@@ -516,6 +598,7 @@ export default function PostJobPage() {
       </form>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {warning && <ErrorBanner message={warning} onDismiss={() => setWarning(null)} />}
       {success && (
         <p role="status" aria-live="polite" aria-atomic="true" className="rounded-md bg-green-100 p-3 text-sm text-green-700">
           {success}
