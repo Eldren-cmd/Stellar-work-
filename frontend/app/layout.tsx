@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { WalletProvider } from "@/lib/wallet-context";
 import { ToastProvider } from "@/components/ToastProvider";
 import { NotificationProvider } from "@/lib/notifications-context";
@@ -17,6 +18,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import JsonLd from "@/components/JsonLd";
 import AppFooter from "@/components/AppFooter";
 import OfflineIndicator from "@/components/OfflineIndicator";
+import WalletNetworkWarning from "@/components/WalletNetworkWarning";
 import "./globals.css";
 
 const CommandPalette = dynamic(() => import("@/components/CommandPalette"), { ssr: false });
@@ -136,14 +138,14 @@ export default async function RootLayout({
           }}
         />
         <NextIntlClientProvider messages={messages} locale={locale}>
-        <ThemeProvider>
-        <TypographyProvider>
-        <NetworkProvider>
-        <WalletProvider>
-          <NotificationProvider>
-          <MessagingProvider>
-          <MeetingsProvider>
-          <ToastProvider>
+          <ThemeProvider>
+            <TypographyProvider>
+              <NetworkProvider>
+                <WalletProvider>
+                  <NotificationProvider>
+                    <MessagingProvider>
+                      <MeetingsProvider>
+                        <ToastProvider>
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-slate-900 focus:outline-none dark:focus:bg-slate-800 dark:focus:text-slate-100"
@@ -153,6 +155,7 @@ export default async function RootLayout({
           <ServiceWorkerRegistration />
           <AnnouncementBanner />
           <OfflineIndicator />
+          <WalletNetworkWarning />
           <Navigation />
           <CommandPalette />
           <ShortcutCheatSheet />
@@ -189,14 +192,14 @@ export default async function RootLayout({
           </footer>
           <InstallPrompt />
           <AppFooter />
-          </ToastProvider>
-          </MeetingsProvider>
-          </MessagingProvider>
-          </NotificationProvider>
-        </WalletProvider>
-        </TypographyProvider>
-        </NetworkProvider>
-        </ThemeProvider>
+                        </ToastProvider>
+                      </MeetingsProvider>
+                    </MessagingProvider>
+                  </NotificationProvider>
+                </WalletProvider>
+              </NetworkProvider>
+            </TypographyProvider>
+          </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>
