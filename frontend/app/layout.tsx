@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import dynamic from "next/dynamic";
@@ -18,7 +19,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import JsonLd from "@/components/JsonLd";
 import AppFooter from "@/components/AppFooter";
 import OfflineIndicator from "@/components/OfflineIndicator";
-import WalletNetworkWarning from "@/components/WalletNetworkWarning";
+import DeferredClientFeatures from "@/components/DeferredClientFeatures";
 import "./globals.css";
 
 const CommandPalette = dynamic(() => import("@/components/CommandPalette"), { ssr: false });
@@ -27,6 +28,7 @@ const OnboardingProvider = dynamic(() => import("@/components/OnboardingProvider
 const InstallPrompt = dynamic(() => import("@/components/InstallPrompt"), { ssr: false });
 const ServiceWorkerRegistration = dynamic(() => import("@/components/ServiceWorkerRegistration"), { ssr: false });
 const AnnouncementBanner = dynamic(() => import("@/components/AnnouncementBanner"), { ssr: false });
+const MetricsReporter = dynamic(() => import("@/components/MetricsReporter"), { ssr: false });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -138,28 +140,28 @@ export default async function RootLayout({
           }}
         />
         <NextIntlClientProvider messages={messages} locale={locale}>
-          <ThemeProvider>
-            <TypographyProvider>
-              <NetworkProvider>
-                <WalletProvider>
-                  <NotificationProvider>
-                    <MessagingProvider>
-                      <MeetingsProvider>
-                        <ToastProvider>
+
+        <ThemeProvider>
+        <TypographyProvider>
+        <NetworkProvider>
+        <WalletProvider>
+          <NotificationProvider>
+          <MessagingProvider>
+          <MeetingsProvider>
+          <ToastProvider>
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-slate-900 focus:outline-none dark:focus:bg-slate-800 dark:focus:text-slate-100"
           >
             Skip to main content
           </a>
+          <DeferredClientFeatures />
           <ServiceWorkerRegistration />
+          <MetricsReporter />
           <AnnouncementBanner />
           <OfflineIndicator />
           <WalletNetworkWarning />
           <Navigation />
-          <CommandPalette />
-          <ShortcutCheatSheet />
-          <OnboardingProvider />
           <ScrollRestorer />
           <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 px-3 py-6 sm:px-4 sm:py-8">
             <ErrorBoundary>{children}</ErrorBoundary>
@@ -190,16 +192,15 @@ export default async function RootLayout({
               </div>
             </div>
           </footer>
-          <InstallPrompt />
           <AppFooter />
-                        </ToastProvider>
-                      </MeetingsProvider>
-                    </MessagingProvider>
-                  </NotificationProvider>
-                </WalletProvider>
-              </NetworkProvider>
-            </TypographyProvider>
-          </ThemeProvider>
+          </ToastProvider>
+          </MeetingsProvider>
+          </MessagingProvider>
+          </NotificationProvider>
+        </WalletProvider>
+        </NetworkProvider>
+        </TypographyProvider>
+        </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>
